@@ -1,4 +1,4 @@
-#Ganimede - Run Jupyter notebook via ReST API
+# Ganimede - Run Jupyter notebook via ReST API
 
 An fastAPI based system to run Jupyter via ReST interface
 
