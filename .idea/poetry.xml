@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="PoetryConfigService">
+    <option name="poetryVirtualenvPaths">
+      <set>
+        <option value="$USER_HOME$/.cache/pypoetry/virtualenvs/ganimede-KYGQCosk-py3.8/bin/python" />
+        <option value="$USER_HOME$/.cache/pypoetry/virtualenvs/ganimede-jpwxbExG-py3.8/bin/python" />
+      </set>
+    </option>
+  </component>
+</project>

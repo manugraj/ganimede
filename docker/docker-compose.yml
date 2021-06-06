@@ -1,0 +1,13 @@
+version: "3"
+services:
+  app:
+    container_name: ganimede
+    image: ganimede:v1
+    build:
+      context: ../
+      dockerfile: docker/Dockerfile
+      args:
+        environment: dev
+        status: stable
+    ports:
+        - 8000:8000
