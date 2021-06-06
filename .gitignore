@@ -2,3 +2,4 @@ logs
 **__init.py__**
 notebooks
 .idea
+__pycache__
