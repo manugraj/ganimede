@@ -25,6 +25,17 @@ An fastAPI based system to run Jupyter via ReST interface
 - Clone the repo and in `docker` folder, run `docker-compose build`. The docker image will be build
 - Push to registry or use your custom publishing method to publish the image
 
+## API Docs
+- Start the application
+- Go to `localhost:8000/docs` for swagger and `localhost:8000/redoc` for redoc
+
+### Main APIs
+- `store` for storing notebook and associated files
+- `run` for executing a jupyter file
+- `html` to get a rendered page of executed notebook
+- `output` to get the output of Jupyter execution in json format
+- `plain_text` to get the plain text output
+
 ## TODO
 - [ ] Provide live environment for editing and running jupyter
 - [ ] Custom transformations for jupyter output
