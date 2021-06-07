@@ -46,7 +46,7 @@ async def status(name: str):
 
 
 @router.get(
-    "/notebook", tags=["Jupyter Notebook"],
+    "/html", tags=["Jupyter Notebook"],
     summary="Get output of execution",
     response_class=HTMLResponse
 )
@@ -59,5 +59,15 @@ async def output(name: str):
     summary="Get output of execution",
     response_model={}
 )
-async def output(name: str, index: int = None):
+async def output(name: str, cell: int = 0):
+    cell = await jupyter.output_cell(name, cell)
+    return cell
+
+
+@router.get(
+    "/plain_text", tags=["Jupyter Notebook"],
+    summary="Get output of execution",
+    response_model={}
+)
+async def output(name: str, index: int = 0):
     return await jupyter.output(name, index)

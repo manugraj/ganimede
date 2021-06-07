@@ -1,4 +1,5 @@
 import datetime
+import json
 import logging
 import os
 import pathlib
@@ -15,6 +16,18 @@ from src.storage.cache_store import JupyterStore, JupyterExecutionStore
 
 store = JupyterStore()
 execution_store = JupyterExecutionStore()
+
+
+def exception_handled(func):
+    async def inner_function(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except IndexError:
+            return {"error": ["Invalid arguments"]}
+        except Exception as e:
+            return {"error": [str(e.__cause__)]}
+
+    return inner_function
 
 
 async def get_status(name) -> ExecutionStatus:
@@ -69,6 +82,7 @@ async def output_notebook(name):
     return output_html.read_text()
 
 
+@exception_handled
 async def output(name, index=None):
     input_path = pathlib.Path(store.get(name))
     default_data = {"info": "No data available"}
@@ -80,6 +94,20 @@ async def output(name, index=None):
         return default_data
     data = output_text.read_text().split("\n")
     return {"data": [data[index]]} if index and data else {"data": data or []}
+
+
+@exception_handled
+async def output_cell(name, cell=None):
+    input_path = pathlib.Path(store.get(name))
+    default_data = {"info": "No data available"}
+    if not input_path:
+        return default_data
+    output_dir = os.path.join(input_path.parent, "outputs")
+    output_text = pathlib.Path(os.path.join(output_dir, f"{input_path.stem}-output.ipynb"))
+    if not output_text or not output_text.exists():
+        return default_data
+    data = json.loads(output_text.read_text())
+    return {"data": data['cells'][cell]['outputs']} if cell and data else {"data": data or []}
 
 
 def run(name, params={}, output_path=None):
@@ -101,12 +129,12 @@ def run(name, params={}, output_path=None):
     try:
         rs = execute_jupyter(name, input_path, output_path, params, stdout_file)
         stdout_file.close()
-        output = os.path.join(output_dir, f"{notebook_name}-output")
+        output_occurrence = os.path.join(output_dir, f"{notebook_name}-output")
         logging.info(f"Execution of {name} completed")
-        write_files(export_list=["html"], nb_node=get_notebook(output_path), file_name=output)
+        write_files(export_list=["html"], nb_node=get_notebook(output_path), file_name=output_occurrence)
         logging.info(f"HTML generation of {name} completed")
         update_execution_status(exe_id=exe_id, name=name, status=Status.SUCCESS)
-        return rs, output
+        return rs, output_occurrence
     except Exception as e:
         logger.error("Error while running notebook:{}, with exception:{}", input_path, e)
         update_execution_status(exe_id=exe_id, name=name, status=Status.FAILURE, errors=[str(e)])
