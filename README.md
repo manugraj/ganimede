@@ -30,6 +30,7 @@ An fastAPI based system to run Jupyter via ReST interface
 - Go to `localhost:8000/docs` for swagger and `localhost:8000/redoc` for redoc
 
 ### Main APIs
+- `define` for defining projects and its dependencies
 - `store` for storing notebook and associated files
 - `run` for executing a jupyter file
 - `html` to get a rendered page of executed notebook

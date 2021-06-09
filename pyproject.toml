@@ -2,7 +2,7 @@
 name = "ganimede"
 version = "0.1.0"
 description = "Deploy Jupyter notebooks for the world"
-authors = ["Manu G Raj"]
+authors = ["Manu G Raj <grajmanu@gmail.com>"]
 
 [tool.poetry.dependencies]
 python = "^3.7"

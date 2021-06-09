@@ -1,6 +1,6 @@
 version: "3"
 services:
-  app:
+  ganimede:
     container_name: ganimede
     image: ganimede:v1
     build:
@@ -9,5 +9,20 @@ services:
       args:
         environment: dev
         status: stable
+    environment:
+      - CONFIG_SOURCE=env
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
+      - LOG_LEVEL=DEBUG
     ports:
         - 8000:8000
+  redis:
+    image: redis:alpine
+    container_name: redis
+    command: redis-server --appendonly yes
+    ports:
+      - 6379:6379
+    volumes:
+      - ./store/redis/data:/data
+    restart: always
