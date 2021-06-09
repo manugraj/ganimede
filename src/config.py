@@ -36,3 +36,8 @@ class SystemConfig:
 
 class Constants:
     NOTEBOOK_STORE = "notebooks"
+    NOTEBOOK_OUTPUT = "output"
+    ENVIRONMENTS = "environments"
+    DEFAULT_OUT_FILE = "output.ipynb"
+    DEFAULT_OUT_FILE_NAME = "output"
+    DEFAULT_STDOUT_FILE = "stdout.text"

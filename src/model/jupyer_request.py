@@ -1,13 +1,10 @@
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, TypedDict
+from uuid import uuid4
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from src.model.message import Status
-
-
-class Parameters(BaseModel):
-    data: Optional[dict]
 
 
 class Execution(BaseModel):
@@ -25,3 +22,30 @@ class ExecutionStatus(BaseModel):
     latest_output: Optional[str]
     latest_execution: Optional[str]
     executions: Optional[dict]
+
+
+class DependencyLog(BaseModel):
+    requirements: Optional[dict]
+    dependency_versions: Optional[List[int]]
+
+
+class NotebookBasic(BaseModel):
+    name: str
+    version: int = Field(default=1)
+
+    def fqn(self):
+        return f'{self.name}_v{self.version}'
+
+
+class NotebookExecutionRequest(NotebookBasic):
+    exe_id: Optional[str]
+    parameters: Optional[dict]
+
+
+class Notebook(NotebookBasic):
+    dependency_log: Optional[DependencyLog]
+
+
+class NotebookVersions(BaseModel):
+    name: Optional[str]
+    versions: Optional[dict]

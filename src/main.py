@@ -1,15 +1,11 @@
-import uvicorn
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from loguru import logger
 
-import src.main
 from src.api.jupyter import router as planet_ns
 from src.config import SystemConfig
 from src.storage.cache import Cache
 
-logger.add("./logs/ganimede.log", rotation="5 MB")
-logger.info("Initializing application : ganimede")
 
 app = FastAPI(
     title="Ganimede",
@@ -23,8 +19,11 @@ app.include_router(planet_ns)
 
 @app.on_event("startup")
 def startup():
+    logger.info("Initializing application : ganimede")
     logger.info("Loading configuration from env")
     SystemConfig.load()
+    logger.remove(0)
+    logger.add("./logs/ganimede.log", rotation="5 MB", level=SystemConfig.get("LOG_LEVEL", "WARN"))
     logger.info("Starting cache systems")
     Cache.start()
 
