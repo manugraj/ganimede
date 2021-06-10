@@ -1,6 +1,5 @@
 import datetime
 import json
-import os
 import pathlib
 
 import delegator
@@ -13,7 +12,8 @@ from src.config import Constants
 from src.model.jupyer_request import ExecutionStatus, Execution, Notebook, NotebookBasic, NotebookExecutionRequest
 from src.model.message import Status
 from src.storage.cache_store import JupyterStore, JupyterExecutionStore, NotebookData, EnvData
-from src.utils.path_utils import paths
+from src.utils.path_utils import paths, paths_create
+from src.utils.py_utils import pkg_info
 
 store = JupyterStore()
 execution_store = JupyterExecutionStore()
@@ -31,6 +31,7 @@ def exception_handled(func):
         except Exception as e:
             logger.error("Exception caught by handler: {}", e)
             return {"error": [str(e)]}
+
     return inner_function
 
 
@@ -40,7 +41,7 @@ async def get_status(notebook: NotebookBasic) -> ExecutionStatus:
 
 async def store_file(notebook: NotebookBasic, file=None, associated_files=None) -> bool:
     nb_location = _paths_store(notebook.name, notebook.version)
-    _paths_create(nb_location)
+    paths_create(nb_location)
     if not file and not associated_files:
         return False
     if file:
@@ -48,10 +49,6 @@ async def store_file(notebook: NotebookBasic, file=None, associated_files=None) 
     if associated_files:
         await _save_associated_files(notebook, associated_files, nb_location)
     return True
-
-
-def _paths_create(nb_location):
-    os.makedirs(nb_location, exist_ok=True)
 
 
 async def define(notebook: Notebook) -> bool:
@@ -74,14 +71,11 @@ async def _prepare_dependency_matrix(notebook: Notebook):
 def _prepare_env(notebook: Notebook, requirements: dict = None):
     kernel = _kernel_name(notebook)
     paths_env = _paths_env(kernel)
-    _paths_create(paths_env)
+    paths_create(paths_env)
     env = VirtualEnvironment(paths_env)
     if requirements:
         for pkg, version in requirements.items():
-            if version and len(version) > 0:
-                ipkg = f"{pkg}=={version}"
-            else:
-                ipkg = pkg
+            ipkg = pkg_info(pkg, version)
             env.install(ipkg)
             logger.debug(f"Installing {ipkg} in {kernel}")
     env.install("jupyter")
@@ -220,7 +214,7 @@ def run(notebook: NotebookExecutionRequest):
 def _mk_output_paths(notebook, notebook_exe_id, make=False):
     output_dir = _paths_out(notebook.name, notebook.version, notebook_exe_id)
     if make:
-        _paths_create(output_dir)
+        paths_create(output_dir)
     output_file = paths(output_dir, Constants.DEFAULT_OUT_FILE)
     stdout_file = paths(output_dir, Constants.DEFAULT_STDOUT_FILE)
     output_file_name = paths(output_dir, Constants.DEFAULT_OUT_FILE_NAME)

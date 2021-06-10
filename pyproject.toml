@@ -21,6 +21,12 @@ black = "^21.5b2"
 virtualenv = "^20.4.7"
 "delegator.py" = "^0.1.1"
 virtualenv-api = "^2.1.18"
+argon2 = "^0.1.10"
+portpicker = "^1.4.0"
+pycrypto = "^2.6.1"
+docker-compose = "^1.29.2"
+clean-text = "^0.4.0"
+Unidecode = "^1.2.0"
 
 [tool.poetry.dev-dependencies]
 flake8 = "^3.9.2"

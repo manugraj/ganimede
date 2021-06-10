@@ -41,3 +41,5 @@ class Constants:
     DEFAULT_OUT_FILE = "output.ipynb"
     DEFAULT_OUT_FILE_NAME = "output"
     DEFAULT_STDOUT_FILE = "stdout.text"
+    CONTAINER_DEFAULT = "spaces"
+    CONTAINER_NB_DEFAULT = "nb"
