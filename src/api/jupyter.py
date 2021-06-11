@@ -24,6 +24,16 @@ async def add_definition(notebook: Notebook,
     return message.response(request=request, status=await jupyter.define(notebook))
 
 
+@router.get(
+    "/projects", tags=["Jupyter Notebook"],
+    summary="See versions of all projects",
+    response_model=message.Response
+)
+async def get_project_data(name: str, request: Request):
+    data = await jupyter.get_project(name)
+    return message.response(request=request, data=data, status=data is not None)
+
+
 @router.post(
     "/store", tags=["Jupyter Notebook"],
     summary="Add Jupyter Notebook and associated files to system",

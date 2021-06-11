@@ -1,32 +1,39 @@
 from fastapi import APIRouter
 
-from src.model.jupyer_request import NotebookBasic
-from src.model.message import Status
-from src.space.space import prepare_env
-from src.utils import docker_cli
+from src.core import jupyter
+from src.model.jupyer_request import NotebookUpdate, NotebookBasic, Notebook, DependencyLog
+from src.model.space import SpaceManagedResponse
+from src.space import space_manager
 from src.utils.crypto_utils import CrypticTalk
-from src.utils.path_utils import paths
 
 router = APIRouter(prefix="/api/v1/notebooks")
 
 
 @router.post(
-    "/test", tags=["Jupyter Notebook Editor"],
+    "/edit", tags=["Jupyter Notebook Editor"],
     summary="Edit & test Jupyter Notebook",
+    response_model=SpaceManagedResponse
+)
+async def edit_nb(name: str, version: int, token: str):
+    return await space_manager.new_request(NotebookBasic(name=name, version=version), token, view=False)
+
+
+@router.get(
+    "/view", tags=["Jupyter Notebook Editor"],
+    summary="View & test Jupyter Notebook",
+    response_model=SpaceManagedResponse
+)
+async def view_nb(name: str, version: int, token: str):
+    return await space_manager.new_request(NotebookBasic(name=name, version=version), token, view=True)
+
+
+@router.post(
+    "/update", tags=["Jupyter Updater"],
+    summary="Update Jupyter Notebook with new version",
     response_model={}
 )
-async def edit_nb(name: str, version: int, request_id: str, token: str):
-    path, port = prepare_env(NotebookBasic(name=name, version=version), CrypticTalk.def_encrypt(token), request_id)
-    d_status = docker_cli.docker("-v")
-    dc_status = docker_cli.docker_compose("-v")
-    if d_status["status"] == dc_status["status"] == Status.SUCCESS.value:
-        deployment = docker_cli.docker_compose(f"-f {paths(path, 'docker-compose.yml')} up -d")
-        if deployment["status"] == Status.SUCCESS.value:
-            return {"url": f"http://localhost:{port}"}
-        else:
-            return {"info": "Deployment failed. Please contact admin"}
-    else:
-        return {"info": "Required systems are not installed. Please contact admin"}
+async def update_nb(update_req: NotebookUpdate, token: str):
+    return await space_manager.update(update_req, token)
 
 
 @router.get(
@@ -34,5 +41,5 @@ async def edit_nb(name: str, version: int, request_id: str, token: str):
     summary="Get sample token",
     response_model={}
 )
-async def token(text: str):
+async def test_token(text: str):
     return {"token": CrypticTalk.def_encrypt(text)}

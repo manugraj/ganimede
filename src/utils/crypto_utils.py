@@ -1,5 +1,6 @@
 import base64
 import hashlib
+import uuid
 from random import Random
 
 from Crypto.Cipher import AES
@@ -8,6 +9,10 @@ from Crypto.Cipher import AES
 def to_hash_argon2(data):
     from argon2 import PasswordHasher
     return PasswordHasher().hash(data)
+
+
+def unique(size: int):
+    return uuid.uuid4().hex[:size].upper()
 
 
 class CrypticTalk:

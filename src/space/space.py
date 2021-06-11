@@ -2,52 +2,23 @@ import pathlib
 import shutil
 from string import Template
 
-import delegator
-import portpicker
-
-from src.config import Constants
+from src.config import Constants, SystemConfig
+from src.core.jupyter import paths_store
 from src.model.jupyer_request import NotebookBasic
+from src.space.docker_file import docker_view_yaml, \
+    docker_yaml, \
+    docker_build_with_requirements, \
+    docker_build_without_requirements
 from src.storage.cache_store import NotebookData
-from src.utils.crypto_utils import to_hash_argon2, CrypticTalk
-from src.utils.path_utils import paths, paths_and_create
+from src.utils import system
+from src.utils.crypto_utils import CrypticTalk
+from src.utils.path_utils import paths, paths_and_create, paths_create
 from src.utils.py_utils import pkg_info
-
-_docker_build_with_requirements = '''
-ARG BASE_CONTAINER=docker.io/jupyter/minimal-notebook:latest
-FROM $BASE_CONTAINER
-COPY requirements.txt requirements.txt
-RUN mkdir -p data
-RUN python3 -m pip install -r requirements.txt
-'''
-
-_docker_build_without_requirements = '''
-ARG BASE_CONTAINER=docker.io/jupyter/minimal-notebook:latest
-FROM $BASE_CONTAINER
-RUN mkdir -p data
-'''
-
-_docker_yaml = '''
-version: "3"
-services:
-  jupyter:
-    container_name: $project_name
-    build:
-      context: ./
-      dockerfile: $project_defn
-    environment:
-      - JUPYTER_ENABLE_LAB=yes
-      - JUPYTER_TOKEN=$project_token
-    volumes:
-    - $project_path:/home/jovyan/work
-    ports:
-        - $port:8888
-'''
 
 nb_store = NotebookData()
 
-
-def verify():
-    return delegator.run("podman -v").return_code == 0
+def verify_integrity():
+    return system.run("docker -v").return_code == 0 and system.run("docker-compose -v").return_code == 0
 
 
 def _generate_requirements(notebook: NotebookBasic, container_path):
@@ -69,31 +40,53 @@ def _copy_contents(container_path, notebook_dir):
     shutil.copytree(notebook_dir, container_path, dirs_exist_ok=True)
 
 
-def prepare_env(notebook: NotebookBasic, token: str, request_id: str):
-    port = portpicker.pick_unused_port()
-    container_path = paths_and_create(Constants.CONTAINER_DEFAULT, request_id, notebook.name, str(notebook.version))
-    container_nb_path = paths_and_create(Constants.CONTAINER_DEFAULT, Constants.CONTAINER_NB_DEFAULT, request_id,
-                                         notebook.name, str(notebook.version))
-    notebook_dir = paths(Constants.NOTEBOOK_STORE, notebook.name, str(notebook.version))
+def paths_container(request_id, notebook: NotebookBasic):
+    return paths(Constants.CONTAINER_DEFAULT, request_id, notebook.name,
+                 str(notebook.version))
+
+
+def paths_container_nb(request_id, notebook: NotebookBasic):
+    return paths(Constants.CONTAINER_NB_DEFAULT, request_id, notebook.name,
+                 str(notebook.version))
+
+
+def prepare_env(notebook: NotebookBasic, token: str, request_id: str, view=True):
+    port = system.free_port()
+    container_path = paths_container(request_id, notebook)
+    paths_create(container_path)
+    container_nb_path = paths_container_nb(request_id, notebook)
+    paths_create(container_nb_path)
+    notebook_dir = paths_store(notebook.name, notebook.version)
     has_requirements = _generate_requirements(notebook, container_path)
     docker_file_name = _write_docker_file(container_path, has_requirements, notebook)
-    _write_dc_yaml(container_path, container_nb_path, docker_file_name, notebook, token, request_id, port)
+    _write_dc_yaml(container_path, container_nb_path, docker_file_name, notebook, token, request_id, port, view)
     _copy_contents(container_nb_path, notebook_dir)
-    return pathlib.Path(container_path).absolute(), port
+    return pathlib.Path(container_path).absolute(), port, pathlib.Path(container_nb_path).absolute()
 
 
-def _write_dc_yaml(container_path, container_nb_path, docker_file_name, notebook, token, request_id, port):
-    write_file(container_path, "docker-compose.yml", Template(_docker_yaml)
-               .substitute(project_name=f"{notebook.fqn()}-r{request_id}",
-                           project_defn=docker_file_name,
-                           project_token=CrypticTalk.def_decrypt(token),
-                           project_path=pathlib.Path(
-                               container_nb_path).absolute(),
-                           port=port))
+def _write_dc_yaml(container_path, container_nb_path, docker_file_name, notebook, token, request_id, port,
+                   view_only=False):
+    if view_only:
+        yml = Template(docker_view_yaml).substitute(
+            project_name=f"{notebook.fqn()}-r{request_id}".lower(),
+            project_defn=docker_file_name,
+            project_token=CrypticTalk.def_decrypt(token),
+            project_path=pathlib.Path(container_nb_path).absolute(),
+            port=port)
+    else:
+        yml = Template(docker_yaml).substitute(
+            project_name=f"{notebook.fqn()}-r{request_id}".lower(),
+            project_defn=docker_file_name,
+            project_token=CrypticTalk.def_decrypt(token),
+            project_path=pathlib.Path(container_nb_path).absolute(),
+            port=port,
+            nb_gid=system.run("id -g").out,
+            nb_uid=system.run("id -u").out)
+    write_file(container_path, "docker-compose.yml", yml)
 
 
 def _write_docker_file(container_path, has_requirements, notebook):
     d_file = f'{notebook.fqn()}.dfile'
     write_file(container_path, d_file,
-               _docker_build_with_requirements if has_requirements else _docker_build_without_requirements)
+               docker_build_with_requirements if has_requirements else docker_build_without_requirements)
     return d_file
