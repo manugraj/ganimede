@@ -30,6 +30,8 @@ An fastAPI based system to run Jupyter via ReST interface
 - Go to `localhost:8000/docs` for swagger and `localhost:8000/redoc` for redoc
 
 ### Main APIs
+
+#### Jupyter Notebook
 - `define` for defining projects and its dependencies
 - `store` for storing notebook and associated files
 - `run` for executing a jupyter file
@@ -37,6 +39,14 @@ An fastAPI based system to run Jupyter via ReST interface
 - `output` to get the output of Jupyter execution in json format
 - `plain_text` to get the plain text output
 
+#### Jupyter Notebook Editor
+- `edit` for editing notebook in a sandbox
+- `view` for viewing notebook in sandbox and can run it, but not save the changes
+
+#### Jupyter Updater
+- `update` for storing the next version of notebook from `edit` endpoint
+
 ## TODO
-- [ ] Provide live environment for editing and running jupyter
+- [x] Provide live environment for editing and running jupyter
 - [ ] Custom transformations for jupyter output
+- [ ] Scheduled cleanup of created jupyter docker containers
