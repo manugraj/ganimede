@@ -8,6 +8,9 @@ An fastAPI based system to run Jupyter via ReST interface
 - Write Jupyter nb locally and run them in a centralised powerful machine to reduce cost
 - Create framework to directly connect Jupyter notebook to other systems 
 
+## Requirements
+- docker
+- redis
 
 ## Stack
 - Redis
@@ -15,6 +18,7 @@ An fastAPI based system to run Jupyter via ReST interface
 - Papermill
 - Jupyter
 - Poetry
+- Docker
 
 ## Build
 - Clone the repo
@@ -50,3 +54,4 @@ An fastAPI based system to run Jupyter via ReST interface
 - [x] Provide live environment for editing and running jupyter
 - [ ] Custom transformations for jupyter output
 - [ ] Scheduled cleanup of created jupyter docker containers
+- [ ] Change container implementation to podman or other rootless systems
