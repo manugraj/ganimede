@@ -1,5 +1,7 @@
 # Ganimede - Run Jupyter notebook via ReST API
 
+<a href="https://www.producthunt.com/posts/ganimede?utm_source=badge-featured&utm_medium=badge&utm_souce=badge-ganimede" target="_blank"><img src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=299971&theme=dark" alt="Ganimede - Painless jupyter notebook management for data pipelines | Product Hunt" style="width: 250px; height: 54px;" width="250" height="54" /></a>
+
 An fastAPI based system to run Jupyter via ReST interface
 
 
