@@ -21,7 +21,17 @@ router = APIRouter(prefix="/api/v1/notebooks")
 async def add_definition(notebook: Notebook,
                          request: Request
                          ):
-    return message.response(request=request, status=await jupyter.define(notebook))
+    return message.response(request=request, data=await jupyter.define(notebook))
+
+
+@router.get(
+    "/projects", tags=["Jupyter Notebook"],
+    summary="See versions of all projects",
+    response_model=message.Response
+)
+async def get_project_data(name: str, request: Request):
+    data = await jupyter.get_project(name)
+    return message.response(request=request, data=data, status=data is not None)
 
 
 @router.post(

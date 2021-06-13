@@ -28,8 +28,17 @@ class NotebookData(Cache):
         versions = self.get(name, NotebookVersions(name=name, versions={})).versions or {}
         return versions.get(version, {})
 
+    def get_version(self, name):
+        return self.get(name, NotebookVersions(name=name, versions={})).versions or {}
+
 
 class EnvData(Cache):
 
     def data_prefix(self) -> str:
         return "env-data-"
+
+
+class RequestStore(Cache):
+
+    def data_prefix(self) -> str:
+        return "request-store-data"

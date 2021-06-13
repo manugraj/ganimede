@@ -48,3 +48,9 @@ class Notebook(NotebookBasic):
 class NotebookVersions(BaseModel):
     name: Optional[str]
     versions: Optional[dict]
+
+
+class NotebookUpdate(BaseModel):
+    base_nb: NotebookBasic
+    new_version: int
+    request_id: str

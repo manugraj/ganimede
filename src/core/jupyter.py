@@ -1,19 +1,21 @@
 import datetime
 import json
-import os
 import pathlib
+from collections import OrderedDict
 
-import delegator
 import papermill as exe
 from loguru import logger
 from notebooktoall.transform import write_files, get_notebook
 from virtualenvapi.manage import VirtualEnvironment
 
 from src.config import Constants
-from src.model.jupyer_request import ExecutionStatus, Execution, Notebook, NotebookBasic, NotebookExecutionRequest
+from src.model.jupyer_request import ExecutionStatus, Execution, Notebook, NotebookBasic, NotebookExecutionRequest, \
+    NotebookVersions
 from src.model.message import Status
 from src.storage.cache_store import JupyterStore, JupyterExecutionStore, NotebookData, EnvData
-from src.utils.path_utils import paths
+from src.utils import system
+from src.utils.path_utils import paths, paths_create, search, store_file_at, store_text_at
+from src.utils.py_utils import pkg_info
 
 store = JupyterStore()
 execution_store = JupyterExecutionStore()
@@ -31,7 +33,30 @@ def exception_handled(func):
         except Exception as e:
             logger.error("Exception caught by handler: {}", e)
             return {"error": [str(e)]}
+
     return inner_function
+
+
+async def next_version(nb: NotebookBasic):
+    if nb_store.exists(nb.name):
+        return list(
+            OrderedDict(sorted(nb_store.get_version(nb.name).items() or [0], key=lambda t: t[0])).keys() or [0]
+        )[-1] + 1
+    else:
+        return 1
+
+
+async def max_version(nb: NotebookBasic):
+    if nb_store.exists(nb.name):
+        return list(
+            OrderedDict(sorted(nb_store.get_version(nb.name).items() or [0], key=lambda t: t[0])).keys() or [0]
+        )[-1]
+    else:
+        return 0
+
+
+async def get_project(name: str):
+    return nb_store.get(name, NotebookVersions(name=name, versions={}))
 
 
 async def get_status(notebook: NotebookBasic) -> ExecutionStatus:
@@ -39,8 +64,8 @@ async def get_status(notebook: NotebookBasic) -> ExecutionStatus:
 
 
 async def store_file(notebook: NotebookBasic, file=None, associated_files=None) -> bool:
-    nb_location = _paths_store(notebook.name, notebook.version)
-    _paths_create(nb_location)
+    nb_location = paths_store(notebook.name, notebook.version)
+    paths_create(nb_location)
     if not file and not associated_files:
         return False
     if file:
@@ -50,14 +75,25 @@ async def store_file(notebook: NotebookBasic, file=None, associated_files=None) 
     return True
 
 
-def _paths_create(nb_location):
-    os.makedirs(nb_location, exist_ok=True)
+async def copy_notebook(notebook: NotebookBasic, from_location) -> bool:
+    nb_location = paths_store(notebook.name, notebook.version)
+    paths_create(nb_location)
+    path_fqn, files = search(from_location, "ipynb")
+    if files:
+        notebook_file = files[0]
+        with open(paths(path_fqn, notebook_file), 'r') as f:
+            new_file = f.read()
+        return await _store_notebook_text(notebook=notebook, text=new_file, file_name=notebook_file,
+                                          location=nb_location)
+    return False
 
 
 async def define(notebook: Notebook) -> bool:
+    if notebook.version <= await max_version(notebook):
+        notebook.version = await next_version(notebook)
     nb_store.add_version(notebook.name, notebook.version, await _prepare_dependency_matrix(notebook))
     env_store.rm(notebook.fqn())
-    return True
+    return notebook
 
 
 async def _prepare_dependency_matrix(notebook: Notebook):
@@ -66,27 +102,24 @@ async def _prepare_dependency_matrix(notebook: Notebook):
         requirements: dict = notebook.dependency_log.requirements or {}
         dependent_versions = notebook.dependency_log.dependency_versions or {}
         for d_version in dependent_versions:
-            versions_data: dict = nb_store.get_data(notebook.name, notebook.version)
-            requirements.update(versions_data.get(d_version, {}))
+            versions_data: dict = nb_store.get_data(notebook.name, d_version)
+            requirements.update(versions_data)
     return requirements
 
 
 def _prepare_env(notebook: Notebook, requirements: dict = None):
     kernel = _kernel_name(notebook)
     paths_env = _paths_env(kernel)
-    _paths_create(paths_env)
+    paths_create(paths_env)
     env = VirtualEnvironment(paths_env)
     if requirements:
         for pkg, version in requirements.items():
-            if version and len(version) > 0:
-                ipkg = f"{pkg}=={version}"
-            else:
-                ipkg = pkg
+            ipkg = pkg_info(pkg, version)
             env.install(ipkg)
             logger.debug(f"Installing {ipkg} in {kernel}")
     env.install("jupyter")
     env.install("ipykernel")
-    cmd = delegator.run(f'{paths(env.path, "bin", "ipython")} kernel install --name {kernel} --user')
+    cmd = system.cmd(f'{paths(env.path, "bin", "ipython")} kernel install --name {kernel} --user')
     return cmd.return_code == 0
 
 
@@ -96,18 +129,20 @@ def _kernel_name(notebook: NotebookBasic):
 
 async def _store_notebook(notebook, file, location):
     save_name = paths(location, file.filename)
-    await _store(file, save_name)
+    await store_file_at(file, save_name)
     store.put(notebook.fqn(), save_name)
+
+
+async def _store_notebook_text(notebook, text, file_name, location):
+    save_name = paths(location, file_name)
+    await store_text_at(text, save_name)
+    store.put(notebook.fqn(), save_name)
+    return True
 
 
 async def _save_associated_files(other_files, location):
     for file in other_files:
-        await _store(file, paths(location, file.filename))
-
-
-async def _store(file, save_name):
-    with open(save_name, "wb+") as file_object:
-        file_object.write(file.file.read())
+        await store(file, paths(location, file.filename))
 
 
 async def output_html(notebook: NotebookBasic, execution_id: str):
@@ -218,16 +253,16 @@ def run(notebook: NotebookExecutionRequest):
 
 
 def _mk_output_paths(notebook, notebook_exe_id, make=False):
-    output_dir = _paths_out(notebook.name, notebook.version, notebook_exe_id)
+    output_dir = paths_out(notebook.name, notebook.version, notebook_exe_id)
     if make:
-        _paths_create(output_dir)
+        paths_create(output_dir)
     output_file = paths(output_dir, Constants.DEFAULT_OUT_FILE)
     stdout_file = paths(output_dir, Constants.DEFAULT_STDOUT_FILE)
     output_file_name = paths(output_dir, Constants.DEFAULT_OUT_FILE_NAME)
     return output_dir, output_file, stdout_file, output_file_name
 
 
-def _paths_store(project_name, project_version):
+def paths_store(project_name, project_version):
     return paths(Constants.NOTEBOOK_STORE,
                  project_name,
                  str(project_version))
@@ -237,7 +272,7 @@ def _paths_env(name):
     return paths(Constants.ENVIRONMENTS, name)
 
 
-def _paths_out(project_name, project_version, iteration_name):
+def paths_out(project_name, project_version, iteration_name):
     return paths(Constants.NOTEBOOK_OUTPUT,
                  project_name,
                  str(project_version),

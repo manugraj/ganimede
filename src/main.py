@@ -1,11 +1,14 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.responses import RedirectResponse
 from loguru import logger
 
 from src.api.jupyter import router as planet_ns
+from src.api.revolve import router as planet_spawn_ns
+
 from src.config import SystemConfig
 from src.storage.cache import Cache
-
 
 app = FastAPI(
     title="Ganimede",
@@ -15,6 +18,8 @@ app = FastAPI(
 
 logger.info("Adding notebook namespace route")
 app.include_router(planet_ns)
+logger.info("Adding notebook editor namespace route")
+app.include_router(planet_spawn_ns)
 
 
 @app.on_event("startup")
@@ -36,4 +41,3 @@ def startup():
 @app.get("/", include_in_schema=False)
 async def redirect():
     return RedirectResponse("/docs")
-
