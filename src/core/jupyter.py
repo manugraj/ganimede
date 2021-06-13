@@ -1,20 +1,19 @@
 import datetime
-import io
 import json
 import pathlib
 from collections import OrderedDict
 
-import delegator
 import papermill as exe
 from loguru import logger
 from notebooktoall.transform import write_files, get_notebook
 from virtualenvapi.manage import VirtualEnvironment
 
-from src.config import Constants, SystemConfig
+from src.config import Constants
 from src.model.jupyer_request import ExecutionStatus, Execution, Notebook, NotebookBasic, NotebookExecutionRequest, \
     NotebookVersions
 from src.model.message import Status
 from src.storage.cache_store import JupyterStore, JupyterExecutionStore, NotebookData, EnvData
+from src.utils import system
 from src.utils.path_utils import paths, paths_create, search, store_file_at, store_text_at
 from src.utils.py_utils import pkg_info
 
@@ -47,6 +46,15 @@ async def next_version(nb: NotebookBasic):
         return 1
 
 
+async def max_version(nb: NotebookBasic):
+    if nb_store.exists(nb.name):
+        return list(
+            OrderedDict(sorted(nb_store.get_version(nb.name).items() or [0], key=lambda t: t[0])).keys() or [0]
+        )[-1]
+    else:
+        return 0
+
+
 async def get_project(name: str):
     return nb_store.get(name, NotebookVersions(name=name, versions={}))
 
@@ -67,7 +75,7 @@ async def store_file(notebook: NotebookBasic, file=None, associated_files=None) 
     return True
 
 
-async def copy_file(notebook: NotebookBasic, from_location) -> bool:
+async def copy_notebook(notebook: NotebookBasic, from_location) -> bool:
     nb_location = paths_store(notebook.name, notebook.version)
     paths_create(nb_location)
     path_fqn, files = search(from_location, "ipynb")
@@ -81,9 +89,11 @@ async def copy_file(notebook: NotebookBasic, from_location) -> bool:
 
 
 async def define(notebook: Notebook) -> bool:
+    if notebook.version <= await max_version(notebook):
+        notebook.version = await next_version(notebook)
     nb_store.add_version(notebook.name, notebook.version, await _prepare_dependency_matrix(notebook))
     env_store.rm(notebook.fqn())
-    return True
+    return notebook
 
 
 async def _prepare_dependency_matrix(notebook: Notebook):
@@ -92,8 +102,8 @@ async def _prepare_dependency_matrix(notebook: Notebook):
         requirements: dict = notebook.dependency_log.requirements or {}
         dependent_versions = notebook.dependency_log.dependency_versions or {}
         for d_version in dependent_versions:
-            versions_data: dict = nb_store.get_data(notebook.name, notebook.version)
-            requirements.update(versions_data.get(d_version, {}))
+            versions_data: dict = nb_store.get_data(notebook.name, d_version)
+            requirements.update(versions_data)
     return requirements
 
 
@@ -109,7 +119,7 @@ def _prepare_env(notebook: Notebook, requirements: dict = None):
             logger.debug(f"Installing {ipkg} in {kernel}")
     env.install("jupyter")
     env.install("ipykernel")
-    cmd = delegator.run(f'{paths(env.path, "bin", "ipython")} kernel install --name {kernel} --user')
+    cmd = system.cmd(f'{paths(env.path, "bin", "ipython")} kernel install --name {kernel} --user')
     return cmd.return_code == 0
 
 
@@ -127,6 +137,7 @@ async def _store_notebook_text(notebook, text, file_name, location):
     save_name = paths(location, file_name)
     await store_text_at(text, save_name)
     store.put(notebook.fqn(), save_name)
+    return True
 
 
 async def _save_associated_files(other_files, location):

@@ -21,7 +21,7 @@ router = APIRouter(prefix="/api/v1/notebooks")
 async def add_definition(notebook: Notebook,
                          request: Request
                          ):
-    return message.response(request=request, status=await jupyter.define(notebook))
+    return message.response(request=request, data=await jupyter.define(notebook))
 
 
 @router.get(

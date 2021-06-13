@@ -40,3 +40,7 @@ async def store_text_at(text: str, save_name):
     paths_create(path.parent.absolute())
     path.touch(exist_ok=True)
     path.write_text(data=text, encoding='utf-8')
+
+
+def path_exists(path) -> bool:
+    return pathlib.Path(path).exists()

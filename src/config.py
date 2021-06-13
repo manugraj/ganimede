@@ -4,7 +4,7 @@ import pathlib
 from dotenv import load_dotenv
 from loguru import logger
 
-from src.utils.path_utils import paths
+from src.utils.path_utils import paths, paths_create
 
 is_env_file = os.getenv("CONFIG_SOURCE", "env_file") == "env_file"
 ROOT_DIR = None
@@ -21,9 +21,14 @@ class SystemConfig:
             logger.info("Loading from env file: ganimede.env")
             from dotenv import find_dotenv
             load_dotenv(find_dotenv(filename='ganimede.env', raise_error_if_not_found=True))
-        SystemConfig.ROOT_DIR = str(pathlib.Path(os.getenv("GANIMEDE_PATH", "./orbit")).absolute())
+        SystemConfig._set_root_dir()
         Constants.load()
         SystemConfig.__loaded = True
+
+    @staticmethod
+    def _set_root_dir():
+        SystemConfig.ROOT_DIR = str(pathlib.Path(os.getenv("GANIMEDE_PATH", "./orbit")).absolute())
+        paths_create(SystemConfig.ROOT_DIR)
 
     @staticmethod
     def get(key: str, default=None):

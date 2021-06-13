@@ -3,7 +3,7 @@ import portpicker
 import requests
 
 
-def run(command):
+def cmd(command):
     return delegator.run(command)
 
 

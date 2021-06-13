@@ -1,13 +1,13 @@
 docker_build_with_requirements = '''
-ARG BASE_CONTAINER=docker.io/jupyter/minimal-notebook:latest
-FROM $BASE_CONTAINER
+FROM docker.io/jupyter/minimal-notebook:latest
 COPY requirements.txt requirements.txt
 RUN python3 -m pip install -r requirements.txt
+$user
 '''
 
 docker_build_without_requirements = '''
-ARG BASE_CONTAINER=docker.io/jupyter/minimal-notebook:latest
-FROM $BASE_CONTAINER
+FROM docker.io/jupyter/minimal-notebook:latest
+$user
 '''
 
 docker_yaml = '''
@@ -25,7 +25,7 @@ services:
       - NB_GID=$nb_gid
       - GRANT_SUDO=yes
     volumes:
-    - $project_path:/home/jovyan/work
+    - $project_path:/home/jovyan/work:z
     ports:
         - $port:8888
 '''
@@ -33,7 +33,7 @@ services:
 docker_view_yaml = '''
 version: "3"
 services:
-  jupyter:
+  $project_name:
     container_name: $project_name
     build:
       context: ./
